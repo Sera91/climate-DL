@@ -15,7 +15,11 @@
 
 source /m100/home/userexternal/sdigioia/.bashrc
 
-conda activate /m100/home/userexternal/sdigioia/geometric
+module load --auto profile/deeplrn
+module load --auto openblas/0.3.9--gnu--8.4.0 cuda/11.0
+module load cineca-ai/2.1.0
+
+conda activate /m100_scratch/userexternal/sdigioia/geom2
 
 cd /m100_scratch/userexternal/sdigioia/github/climate-DL/local_single/
 
