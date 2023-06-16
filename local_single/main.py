@@ -93,10 +93,12 @@ if __name__ == '__main__':
         accelerator = Accelerator(log_with="wandb")
     else:
         accelerator = None
-    
+
+    #using wandb to track the training loss evolution
+    #using offline mode because computing nodes on m100 have no internet
     if args.mode == 'train':
-        os.environ['WANDB_API_KEY'] = 'b3abf8b44e8d01ae09185d7f9adb518fc44730dd'
-        os.environ['WANDB_USERNAME'] = 'valebl'
+        os.environ['WANDB_API_KEY'] = 'cf0322679d323fb61aa5c6ae53d8eaa215c0ceb8' #YOU NEED to modify this line using your WANDB API key!
+        os.environ['WANDB_USERNAME'] = 'eirene1991'
         os.environ['WANDB_MODE'] = 'offline'
 
         accelerator.init_trackers(
