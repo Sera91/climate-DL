@@ -18,9 +18,10 @@ source /m100/home/userexternal/sdigioia/.bashrc
 module load --auto profile/deeplrn
 module load --auto openblas/0.3.9--gnu--8.4.0 cuda/11.0
 
-conda activate /m100_scratch/userexternal/sdigioia/geom2
+#conda activate /m100_scratch/userexternal/sdigioia/geom2
+conda activate /m100_work/ICT23_ESP_C/env/GNNenv
 
-cd /m100_scratch/userexternal/sdigioia/github/climate-DL/local_single/
+cd /m100_scratch/userexternal/sdigioia/github/climate-DL/local_single/ 
 
 ## training
 accelerate launch --config_file ~/.cache/huggingface/accelerate/default_config_4.yaml main.py --input_path="/m100_scratch/userexternal/sdigioia/climate-DL/data_fvg_preprocessed/" --output_path="/m100_scratch/userexternal/sdigioia/climate-DL/local_single/cl_test/" --input_file="input_standard.pkl"  --idx_file="idx_train_cl.pkl" --log_file="log.txt" --target_file="target_train_cl.pkl" --mask_target_file="mask_train_cl.pkl" --graph_file="G_train.pkl" --mask_target_file="mask_train_cl.pkl" --subgraphs_file="subgraphs.pkl" --out_checkpoint_file="checkpoint.pth" --out_loss_file="loss.csv" --pct_trainset=1 --epochs=15 --batch_size=64 --step_size=25 --lr=0.0001 --weight_decay=0.0 --model_name="Classifier_old" --loss_fn="sigmoid_focal_loss" --model_type="cl" --use_accelerate --load_checkpoint --no-test_model --no-ctd_training --fine_tuning --performance="accuracy"  --checkpoint_file="/m100_scratch/userexternal/sdigioia/climate-DL/data_fvg_preprocessed/checkpoint_ae_e3.pth" --wandb_project_name="Classifier-test" --mode="train" --lon_dim=7 --lat_dim=7
