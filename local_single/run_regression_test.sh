@@ -9,11 +9,14 @@
 #SBATCH --gres=gpu:4          # 1 gpus per node out of 4
 #SBATCH --job-name=reg_test
 ## SBATCH --mail-type=FAIL,END
-## SBATCH --mail-user=vblasone@ictp.it
-#SBATCH -o /m100_work/ICT23_ESP_C/vblasone/climate-DL/local_single/reg_test/run.out
-#SBATCH -e /m100_work/ICT23_ESP_C/vblasone/climate-DL/local_single/reg_test/run.err
+## SBATCH --mail-user=sdigioia@ictp.it
+#SBATCH -o /m100_work/ICT23_ESP_C/sdigioia/climate-DL/local_single/reg_test/run.out
+#SBATCH -e /m100_work/ICT23_ESP_C/sdigioia/climate-DL/local_single/reg_test/run.err
 
 source /m100/home/userexternal/sdigioia/.bashrc
+
+module load --auto profile/deeplrn
+module load --auto openblas/0.3.9--gnu--8.4.0 cuda/11.0
 
 conda activate /m100_work/ICT23_ESP_C/env/GNNenv
 
