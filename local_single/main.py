@@ -31,6 +31,7 @@ parser.add_argument('--checkpoint_file', type=str, default=None)
 parser.add_argument('--graph_file', type=str, default=None) 
 parser.add_argument('--mask_target_file', type=str, default=None)
 parser.add_argument('--subgraphs_file', type=str, default=None)
+parser.add_argument('--weights_file', type=str, default=None)
 
 #-- output files
 parser.add_argument('--log_file', type=str, default='log.txt', help='log file')
@@ -121,6 +122,8 @@ if __name__ == '__main__':
             loss_fn = getattr(torchvision.ops.focal_loss, args.loss_fn)
         elif args.loss_fn == 'weighted_cross_entropy_loss':
             loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([0.1,1]))
+        elif args.loss_fn == 'weighted_mse_loss':
+            loss_fn = getattr(utils, 'weighted_mse_loss')
         else:
             loss_fn = getattr(nn.functional, args.loss_fn)    
         

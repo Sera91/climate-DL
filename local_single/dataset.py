@@ -66,7 +66,7 @@ class Dataset_pr_gnn(Dataset_pr):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.input, self.idx_to_key, self.target, self.graph, self.subgraphs, self.mask_target = self._load_data_into_memory()
+        self.input, self.idx_to_key, self.target, self.graph, self.subgraphs, self.mask_target, self.weights = self._load_data_into_memory()
 
     def _load_data_into_memory(self):
         with open(self.args.input_path + self.args.input_file, 'rb') as f:
@@ -81,9 +81,14 @@ class Dataset_pr_gnn(Dataset_pr):
             mask_target = pickle.load(f)
         with open(self.args.input_path + self.args.subgraphs_file, 'rb') as f:
             subgraphs = pickle.load(f)
+        if self.args.weights_file is not None:
+            with open(self.args.input_path + self.args.weights_file, 'rb') as f:
+                weights = pickle.load(f)
+        else:
+            weights = None
         self.length = len(idx_to_key)
         self.low_res_abs = abs(graph.low_res)
-        return input, idx_to_key, target, graph, subgraphs, mask_target
+        return input, idx_to_key, target, graph, subgraphs, mask_target, weights
 
     def __getitem__(self, idx):
         k = self.idx_to_key[idx]   
@@ -100,6 +105,9 @@ class Dataset_pr_gnn(Dataset_pr):
         subgraph["train_mask"] = train_mask
         y = self.target[subgraph.mask_1_cell, time_idx][train_mask]         # y.shape = (subgraph.n_nodes,)
         subgraph["y"] = y 
+        if self.weights is not None:
+            w = self.weights[subgraph.mask_1_cell, time_idx][train_mask]         # y.shape = (subgraph.n_nodes,)
+            subgraph["w"] = w
         return input, subgraph
     
 class Dataset_pr_test(Dataset_pr):

@@ -6,17 +6,19 @@ import argparse
 import sys
 import torch
 import os
+import matplotlib.pyplot as plt
 
 from torch_geometric.data import Data
+from utils_preprocessing import create_zones, plot_italy
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 #-- paths
 parser.add_argument('--output_path', type=str, default='/m100_work/ICT23_ESP_C/vblasone/climate-DL/preprocessing/')
 parser.add_argument('--log_file', type=str, default='log_ae.txt')
-parser.add_argument('--target_path_file', type=str, default='/m100_work/ICT23_ESP_C/vblasone/GRIPHO/gripho-v1_1h_TSmin30pct_2001-2016_cut.nc')
-parser.add_argument('--topo_path_file', type=str, default='/m100_work/ICT23_ESP_C/vblasone/TOPO/GMTED_DEM_30s_remapdis_GRIPHO.nc')
-#parser.add_argument('--input_path_file', type=str, default='/m100_work/ICT23_ESP_C/vblasone/SLICED/q_sliced.nc')
+parser.add_argument('--input_path', type=str, default='/m100_work/ICT23_ESP_C/SHARED/')
+parser.add_argument('--target_file', type=str, default='GRIPHO/gripho-v1_1h_TSmin30pct_2001-2016_cut.nc')
+parser.add_argument('--topo_file', type=str, default='TOPO/GMTED_DEM_30s_remapdis_GRIPHO.nc')
 
 #-- lat lon grid values
 parser.add_argument('--lon_min', type=float, default=6.50)
@@ -26,6 +28,7 @@ parser.add_argument('--lat_max', type=float, default=47.50)
 parser.add_argument('--interval', type=float, default=0.25)
 parser.add_argument('--time_dim', type=float, default=140256)
 parser.add_argument('--offset_9_cells', type=float, default=0.25)
+parser.add_argument('--make_plots', action='store_true', default=False)
 
 #-- other
 parser.add_argument('--suffix', type=str, default='')
@@ -118,15 +121,35 @@ if __name__ == '__main__':
     LON_DIFF_MAX = 0.25 / 8 * 2
     LAT_DIFF_MAX = 0.25 / 10 * 2
 
-    ## deriva arrays corresponding to the lon/lat low resolution grid points
-    lon_low_res_array = np.arange(args.lon_min, args.lon_max, args.interval)
-    lat_low_res_array = np.arange(args.lat_min, args.lat_max, args.interval)
+    ## derive arrays corresponding to the lon/lat low resolution grid points
+    lon_low_res_array = np.arange(args.lon_min-args.interval, args.lon_max+args.interval, args.interval)
+    lat_low_res_array = np.arange(args.lat_min-args.interval, args.lat_max+args.interval, args.interval)
     lon_low_res_dim = lon_low_res_array.shape[0]
     lat_low_res_dim = lat_low_res_array.shape[0]
     space_low_res_dim = lon_low_res_dim * lat_low_res_dim
     
+    lon_high_res_array = np.arange(args.lon_min, args.lon_max, args.interval)
+    lat_high_res_array = np.arange(args.lat_min, args.lat_max, args.interval)
+    lon_high_res_dim = lon_high_res_array.shape[0] - 1
+    lat_high_res_dim = lat_high_res_array.shape[0] - 1
+
+    lon_input_points_array = np.arange(args.lon_min-args.interval*3, args.lon_max+args.interval*4, args.interval)
+    lat_input_points_array = np.arange(args.lat_min-args.interval*3, args.lat_max+args.interval*4, args.interval)
+    lon_input_points_dim = lon_input_points_array.shape[0]
+    lat_input_points_dim = lat_input_points_array.shape[0]
+    space_input_points_dim = lon_input_points_dim * lat_input_points_dim
+
     write_log("\nStart!", args, 'w')
-    
+    write_log(f"\nThe considered low-res lon-lat windows is [{lon_low_res_array.min()}, {lon_low_res_array.max()+args.interval}] x [{lat_low_res_array.min()}, {lat_low_res_array.max()+args.interval}]. " + 
+              f"\nThe number of points is (lon x lat) {lon_low_res_dim} x {lat_low_res_dim}.", args)
+    write_log(f"\nThe considered high-res lon-lat windows is [{lon_high_res_array.min()}, {lon_high_res_array.max()+args.interval}] x [{lat_high_res_array.min()}, {lat_high_res_array.max()+args.interval}]. " + 
+              f"\nThe number of cells is (lon x lat) {lon_high_res_dim} x {lat_high_res_dim}", args)
+
+    args.lon_min = args.lon_min - args.interval
+    args.lon_max = args.lon_max + args.interval
+    args.lat_min = args.lat_min - args.interval
+    args.lat_max = args.lat_max + args.interval
+
     #-----------------------------------------------------
     #------------------- TIME INDEXES --------------------
     #-----------------------------------------------------
@@ -143,14 +166,14 @@ if __name__ == '__main__':
     with open(args.output_path + "idx_time_train.pkl", 'wb') as f:
         pickle.dump(idx_time_train, f)
 
-    write_log(f"\nTrain idxs from {min(idx_time_train)} to {max(idx_time_train)}. Test idxs from {min(idx_time_test)} to {max(idx_time_test)}.", args, 'w')
+    write_log(f"\nTrain idxs from {min(idx_time_train)} to {max(idx_time_train)}. Test idxs from {min(idx_time_test)} to {max(idx_time_test)}.", args)
     
     #-----------------------------------------------------
     #----------- CUT LON, LAT, PR, Z TO WINDOW -----------
     #-----------------------------------------------------
 
-    gripho = xr.open_dataset(args.target_path_file)
-    topo = xr.open_dataset(args.topo_path_file)
+    gripho = xr.open_dataset(args.input_path + args.target_file)
+    topo = xr.open_dataset(args.input_path + args.topo_file)
 
     lon = gripho.lon.to_numpy()
     lat = gripho.lat.to_numpy()
@@ -254,6 +277,22 @@ if __name__ == '__main__':
     pr_sel_train_reg = np.array([np.where(pr >= threshold, np.log1p(pr), np.nan) for pr in pr_sel_train], dtype=np.float32)
     pr_sel_test = pr_sel[:,min(idx_time_test):max(idx_time_test)+1]
 
+    weights = [1,2,5,10,20,50]
+    weights_thresholds = [0,1,5,10,20,50]
+
+    reg_weights = np.ones(pr_sel_train.shape, dtype=np.float32) * weights[0]
+    
+    for i, w in enumerate(weights):
+        thresh = weights_thresholds[i]
+        reg_weights[pr_sel_train >= thresh] = w
+
+    reg_weights[np.isnan(pr_sel_train)] = np.nan
+
+    reg_weights = torch.tensor(reg_weights)
+
+    with open(args.output_path + 'weights_reg_train.pkl', 'wb') as f:
+        pickle.dump(reg_weights, f)
+
     #-------------------------------------------------
     #----------- STANDARDISE LON LAT AND Z -----------
     #-------------------------------------------------
@@ -304,33 +343,33 @@ if __name__ == '__main__':
     edge_attr[:,0] = edge_attr[:,0] / edge_attr[:,0].max() 
     edge_attr[:,1] = edge_attr[:,1] / edge_attr[:,1].max()
     
-#    ## intervals to categorical values
-#    lon_m1 = edge_attr[:,0]<-0.5
-#    lon_0 = np.logical_and(edge_attr[:,0]>-0.5, edge_attr[:,0]<0.5)
-#    lon_1 = edge_attr[:,0]>0.5
-#    lat_m1 = edge_attr[:,1]<-0.5
-#    lat_0 = np.logical_and(edge_attr[:,1]>-0.5, edge_attr[:,1]<0.5)
-#    lat_1 = edge_attr[:,1]>0.5
-#    
-#    bool_N = np.logical_and(lon_0, lat_m1)     # (0, -1)
-#    bool_NE = np.logical_and(lon_m1, lat_m1)   # (-1,-1)
-#    bool_E = np.logical_and(lon_m1, lat_0)      # (-1, 0)
-#    bool_SE = np.logical_and(lon_m1, lat_1)    # (-1, 1)
-#    bool_S = np.logical_and(lon_0, lat_1)      # (0, 1)
-#    bool_SO = np.logical_and(lon_1, lat_1)     # (1, 1)
-#    bool_O = np.logical_and(lon_1, lat_0)      # (1, 0)
-#    bool_NO = np.logical_and(lon_1, lat_m1)    # (1, m)
-#
-#    edge_attr_cat = np.empty(edge_attr.shape[0], dtype=int)
-#    
-#    edge_attr_cat[bool_N] = 0
-#    edge_attr_cat[bool_NE] = 1
-#    edge_attr_cat[bool_E] = 2
-#    edge_attr_cat[bool_SE] = 3
-#    edge_attr_cat[bool_S] = 4
-#    edge_attr_cat[bool_SO] = 5
-#    edge_attr_cat[bool_O] = 6
-#    edge_attr_cat[bool_NO] = 7
+    ## intervals to categorical values
+    lon_m1 = edge_attr[:,0]<-0.5
+    lon_0 = np.logical_and(edge_attr[:,0]>-0.5, edge_attr[:,0]<0.5)
+    lon_1 = edge_attr[:,0]>0.5
+    lat_m1 = edge_attr[:,1]<-0.5
+    lat_0 = np.logical_and(edge_attr[:,1]>-0.5, edge_attr[:,1]<0.5)
+    lat_1 = edge_attr[:,1]>0.5
+    
+    bool_N = np.logical_and(lon_0, lat_m1)     # (0, -1)
+    bool_NE = np.logical_and(lon_m1, lat_m1)   # (-1,-1)
+    bool_E = np.logical_and(lon_m1, lat_0)      # (-1, 0)
+    bool_SE = np.logical_and(lon_m1, lat_1)    # (-1, 1)
+    bool_S = np.logical_and(lon_0, lat_1)      # (0, 1)
+    bool_SO = np.logical_and(lon_1, lat_1)     # (1, 1)
+    bool_O = np.logical_and(lon_1, lat_0)      # (1, 0)
+    bool_NO = np.logical_and(lon_1, lat_m1)    # (1, m)
+
+    edge_attr_cat = np.empty(edge_attr.shape[0], dtype=int)
+    
+    edge_attr_cat[bool_N] = 0
+    edge_attr_cat[bool_NE] = 1
+    edge_attr_cat[bool_E] = 2
+    edge_attr_cat[bool_SE] = 3
+    edge_attr_cat[bool_S] = 4
+    edge_attr_cat[bool_SO] = 5
+    edge_attr_cat[bool_O] = 6
+    edge_attr_cat[bool_NO] = 7
     
     #-----------------------------------------------------
     #---------------------- GRAPHS -----------------------
@@ -339,8 +378,8 @@ if __name__ == '__main__':
     ## create the graph objects
     G_test = Data(num_nodes=z_sel_s.shape[0], pos=torch.tensor(pos), y=torch.tensor(pr_sel_test), pr_cl=torch.zeros(pr_sel_test.shape),
             pr_reg=torch.zeros(pr_sel_test.shape), low_res=torch.tensor(abs(cell_idx_array)).int(), edge_index=torch.tensor(edge_index),
-            edge_attr=torch.tensor(edge_attr), x=torch.tensor(lon_lat_z_s))
-    G_train = Data(num_nodes=z_sel_s.shape[0], x=torch.tensor(lon_lat_z_s), edge_index=torch.tensor(edge_index), edge_attr=torch.tensor(edge_attr),
+            edge_attr=torch.tensor(edge_attr_cat), x=torch.tensor(lon_lat_z_s))
+    G_train = Data(num_nodes=z_sel_s.shape[0], x=torch.tensor(lon_lat_z_s), edge_index=torch.tensor(edge_index), edge_attr=torch.tensor(edge_attr_cat),
             low_res=torch.tensor(abs(cell_idx_array)).int())
 
     ## write some files
@@ -382,10 +421,10 @@ if __name__ == '__main__':
             j = s % space_low_res_dim
             idx_list = np.array([ii * lon_low_res_dim + jj for ii in range(i-1,i+2) for jj in range(j-1,j+2)])
             for t in idx_time_train:
-                if not (~mask_train_cl[mask_1,t]).all():
+                if not (~mask_train_cl[mask_1,t]).all(): # if at leat one value is not nan
                     k = t * space_low_res_dim + s
                     idx_train_cl.append(k)
-                    if not (~mask_train_reg[mask_1,t]).all():
+                    if not (~mask_train_reg[mask_1,t]).all(): # if at least one value is not nan and >= threshold
                         idx_train_reg.append(k)
             if c % 10 == 0:
                 write_log(f"\nSpace idx {s} done.", args)     
@@ -407,7 +446,80 @@ if __name__ == '__main__':
 
     with open(args.output_path + 'mask_train_reg.pkl', 'wb') as f:
         pickle.dump(torch.tensor(mask_train_reg), f)
-    
+   
+    #-----------------------------------------------------
+    #--------------------- SUBGRAPHS ---------------------
+    #-----------------------------------------------------
+
+    subgraphs = [[] for i in range(max(valid_examples_space)+1)]
+
+    for space_idx in valid_examples_space:
+        lat_idx = space_idx // lon_low_res_dim
+        lon_idx = space_idx % lon_low_res_dim
+        mask_subgraph = mask_1_cell_subgraphs[space_idx] # shape = (n_nodes,)
+        subgraph = G_train.subgraph(subset=mask_subgraph)
+        cell_idx_list = torch.tensor([ii * lon_low_res_dim + jj for ii in range(lat_idx-1,lat_idx+2) for jj in range(lon_idx-1,lon_idx+2)])
+        subgraph["mask_1_cell"] = mask_1_cell_subgraphs[space_idx].cpu()  # (n_nodes)
+        subgraph["mask_9_cells"] = mask_9_cells_subgraphs[space_idx].cpu()         # (n_nodes)
+        subgraphs[space_idx] = subgraph
+        
+        if space_idx % 10 == 0:
+            write_log(f"\nDone until {space_idx}.", args)
+            
+    with open(args.output_path + 'subgraphs.pkl', 'wb') as f:
+        pickle.dump(subgraphs, f)
+
+    #-----------------------------------------------------
+    #----------------------- PLOTS -----------------------
+    #-----------------------------------------------------
+
+    if args.make_plots:
+
+        zones = create_zones()
+
+        x_size = lon_input_points_dim
+        y_size = lat_input_points_dim
+        font_size = int(18 / 7 * x_size)
+
+        fig, ax = plt.subplots(figsize=(x_size, y_size))
+
+        _ = ax.scatter(pos[:,0], pos[:,1], c='grey',alpha=0.2,marker="s", s=40, cmap='turbo')
+        c = torch.tensor(abs(cell_idx_array)).int()
+
+        for s in subgraphs:
+            if s != []:
+                alpha = np.ones(s.mask_1_cell.sum())*0.2
+                _ = ax.scatter(pos[:,0][s.mask_1_cell],pos[:,1][s.mask_1_cell],
+                        c=c[s.mask_1_cell], marker="s", s=40, vmin = 0,
+                        vmax = space_low_res_dim, cmap='turbo', alpha=alpha)
+
+        for l in lon_input_points_array:
+            _ = ax.plot([l, l], [lat_input_points_array.min(), lat_input_points_array.max()], 'b', alpha=0.2)
+
+        for l in lat_input_points_array:
+            _ = ax.plot([lon_input_points_array.min(), lon_input_points_array.max()], [l,l], 'b', alpha=0.2)
+
+        lon_plot_array = np.arange(lon_low_res_array.min(), lon_low_res_array.max()+args.interval*2, args.interval)
+        lat_plot_array = np.arange(lat_low_res_array.min(), lat_low_res_array.max()+args.interval*2, args.interval)
+
+        for l in lon_plot_array:
+            _ = ax.plot([l, l], [lat_plot_array.min(), lat_plot_array.max()], 'k', alpha=0.4)
+
+        for l in lat_plot_array:
+            _ = ax.plot([lon_plot_array.min(), lon_plot_array.max()], [l,l], 'k', alpha=0.4)
+
+        for i, lat_i in enumerate(lat_low_res_array):
+            for j, lon_j in enumerate(lon_low_res_array):
+                k = i * lon_low_res_dim + j
+                _ = ax.text(lon_j+0.1, lat_i+0.1, k, fontsize=22)
+                                                                                                        
+        plot_italy(zones, color='black', ax=ax, alpha_fill=0, linewidth=2)
+        plt.xlim([lon_input_points_array.min() - 0.25, lon_input_points_array.max() + 0.25])
+        plt.ylim([lat_input_points_array.min() - 0.25, lat_input_points_array.max() + 0.25])
+        plt.xlabel("Longitude")
+        plt.ylabel("Latitude")
+        plt.savefig(args.output_path + f'graph.pdf', dpi=400, bbox_inches='tight', pad_inches=0.0)
+
     write_log("\nDone!", args)
 
 

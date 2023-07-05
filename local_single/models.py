@@ -328,14 +328,14 @@ class Regressor_old(nn.Module):
         data_batch = Batch.from_data_list(data_batch, exclude_keys=["low_res", "mask_1_cell", "mask_subgraph", "idx_list", "idx_list_mapped"]) 
         y_pred = self.gnn(data_batch.x, data_batch.edge_index)
         train_mask = data_batch.train_mask
-        return y_pred.squeeze()[train_mask], data_batch.y.squeeze()
+        return y_pred.squeeze()[train_mask], data_batch.y.squeeze(), data_batch.w.squeeze()
 
 #----------------------------------------------
 #-------- no lat lon in node features ---------
 #----------------------------------------------
 
 class Classifier_z_only(nn.Module):
-    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, num_node_features=3, input_dim=256, hidden_dim=256, node_dim=1):
+    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, input_dim=256, hidden_dim=256, node_dim=1):
         super().__init__()
         self.cnn_output_dim = cnn_output_dim
         self.node_dim = node_dim
@@ -401,7 +401,7 @@ class Classifier_z_only(nn.Module):
 
 
 class Regressor_z_only(nn.Module):
-    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, num_node_features=3, input_dim=256, hidden_dim=256, node_dim=1):
+    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, input_dim=256, hidden_dim=256, node_dim=1):
         super().__init__()
         self.cnn_output_dim = cnn_output_dim
         self.node_dim = node_dim
@@ -460,9 +460,9 @@ class Regressor_z_only(nn.Module):
             data.__setitem__('x', features)
             
         data_batch = Batch.from_data_list(data_batch, exclude_keys=["low_res", "mask_1_cell", "mask_subgraph", "idx_list", "idx_list_mapped"]) 
-        y_pred = self.gnn(data_batch.x, data_batch.edge_index, data_batch.edge_attr.float())
+        y_pred = self.gnn(data_batch.x, data_batch.edge_index)
         train_mask = data_batch.train_mask
-        return y_pred.squeeze()[train_mask], data_batch.y.squeeze()
+        return y_pred.squeeze()[train_mask], data_batch.y.squeeze(), data_batch.w.squeeze()
 
 
 #----------------------------------------------
@@ -470,7 +470,7 @@ class Regressor_z_only(nn.Module):
 #----------------------------------------------
 
 class Classifier_edges(nn.Module):
-    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, num_node_features=3, input_dim=256, hidden_dim=256, node_dim=1, edge_attr_dim=2):
+    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, input_dim=256, hidden_dim=256, node_dim=1, edge_attr_dim=1):
         super().__init__()
         self.cnn_output_dim = cnn_output_dim
         self.node_dim = node_dim
@@ -537,7 +537,7 @@ class Classifier_edges(nn.Module):
 
 
 class Regressor_edges(nn.Module):
-    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, num_node_features=3, input_dim=256, hidden_dim=256, node_dim=1, edge_attr_dim=2):
+    def __init__(self, input_size=5, gru_hidden_dim=12, cnn_output_dim=256, n_layers=2, num_node_features=3, input_dim=256, hidden_dim=256, node_dim=1, edge_attr_dim=1):
         super().__init__()
         self.cnn_output_dim = cnn_output_dim
         self.node_dim = node_dim
@@ -599,7 +599,7 @@ class Regressor_edges(nn.Module):
         data_batch = Batch.from_data_list(data_batch, exclude_keys=["low_res", "mask_1_cell", "mask_subgraph", "idx_list", "idx_list_mapped"]) 
         y_pred = self.gnn(data_batch.x, data_batch.edge_index, data_batch.edge_attr.float())
         train_mask = data_batch.train_mask
-        return y_pred.squeeze()[train_mask], data_batch.y.squeeze()
+        return y_pred.squeeze()[train_mask], data_batch.y.squeeze(), data_batch.w.squeeze()
 
 
 #----------------------------------------------

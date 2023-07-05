@@ -183,8 +183,10 @@ class Trainer(object):
         device = 'cuda' if accelerator is None else accelerator.device
         for X, data in dataloader:
             optimizer.zero_grad()
-            y_pred, y = model(X, data, device)
-            loss = loss_fn(y_pred, y)
+            #y_pred, y = model(X, data, device)
+            #loss = loss_fn(y_pred, y)
+            y_pred, y, w = model(X, data, device)
+            loss = loss_fn(y_pred, y, w)
             accelerator.backward(loss)
             torch.nn.utils.clip_grad_norm_(model.parameters(),5)
             optimizer.step()
